@@ -14,7 +14,7 @@ These memmaps must be saved in:
 
     data/memmap/<name_of_the_corpus>/<name_of_the_encoder>
 
-Within this directory, there should be two files `<name_of_the_encoder>.dat` that contains the mammap and `<name_of_the_encoder>_map.csv` that should be a csv with two columns `and `offset`. The first column is the document id in the corpus, while the second is the offset (i.e., the number of the row) at which the document is encoded in the memmap.
+Within this directory, there should be two files `<name_of_the_encoder>.dat` that contains the mammap and `<name_of_the_encoder>_map.csv` that should be a csv with two columns `doc_id` and `offset`. The first column is the document id in the corpus, while the second is the offset (i.e., the number of the row) at which the document is encoded in the memmap.
 
 to replicate exactly the results of the paper, `<name_of_the_corpus>`should be one between `msmarco-passages`and `tipster`. While `<name_of_the_encoder>` is one among `ance, contriever, tasb`.
 Currently, the repository contains empty files as placeholders for the contriever encodings.
