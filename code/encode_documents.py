@@ -17,16 +17,17 @@ def main(args):
 
     dids = []
     passages = []
+    print("Loading dataset")
     for i, (did, text) in enumerate(dataset.docs_iter()):
         dids.append(did)
         passages.append(text)
 
+    print("Dataset loaded!")
     id_map = pd.DataFrame({"doc_id": dids, "offset": np.arange(len(dids), dtype=int)})
     save_dir = os.path.join(args.output, "msmarco-passages", args.encoder)
     os.makedirs(save_dir, exist_ok=True)
     filename = os.path.join(save_dir, args.encoder)
     id_map.to_csv(f"{filename}_map.csv", index=False)
-    exit()
 
     encodings = []
     batch_size = 256
