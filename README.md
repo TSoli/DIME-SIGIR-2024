@@ -19,13 +19,25 @@ Within this directory, there should be two files `<name_of_the_encoder>.dat` tha
 to replicate exactly the results of the paper, `<name_of_the_corpus>`should be one between `msmarco-passages`and `tipster`. While `<name_of_the_encoder>` is one among `ance, contriever, tasb`.
 Currently, the repository contains empty files as placeholders for the contriever encodings.
 
+## Encoding Documents
+
+To encode the documents, you can use the `code/encode_documents.py` script with
+
+```sh
+python encode_documents.py -c <name_of_the_collection> -e <name_of_the_encoder> -o [output_directory]/
+```
+
+The default output directory is `../data/memmaps` and then the files will be saved following the expected
+structure inside this.
+
 ## Running the code
 If you satisfy the prerequisites (i.e., you have a memmap data structure that stores the encoding of all the documents in the corpus in the directory, as described above), the code can run from the main directory with the following line:
 
-    python code/main.py -c <name_of_the_collection> -e <name_of_the_encoder> -d <name_of_the_dime>
+    python code/main.py -c <name_of_the_collection> -e <name_of_the_encoder> -d <name_of_the_dime> -o [figures_directory]
 
 Name of the collection should be one among `trec-dl-2019`, `trec-dl-2020`,  `trec-robust-2004`.
 Concerning the name of the dime, it should be one among `oracle`, `rel`, `llm`, `prf`.
+If specified, the figures directory will be used to output figures for AP and nDCG@10.
 
 
 ### Citing this work
