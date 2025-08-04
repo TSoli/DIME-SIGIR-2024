@@ -3,4 +3,5 @@
 # python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e contriever
 # python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e ance
 # python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e tasb
-python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e starbucks
+# python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e starbucks
+python encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e cocondenser

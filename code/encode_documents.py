@@ -29,16 +29,14 @@ def main(args):
     filename = os.path.join(save_dir, args.encoder)
     id_map.to_csv(f"{filename}_map.csv", index=False)
 
-    encodings = []
+    fp = np.memmap(f"{filename}.dat", dtype="float32", mode="w+", shape=(len(passages), encoder.embeddings_dim))
     batch_size = 256
     batches = batched(passages, batch_size)
-    for ps in tqdm(batches, total=(len(passages) + batch_size - 1) // batch_size):
-        encodings.append(encoder.encode_documents(ps))
-
-    encodings = np.vstack(encodings)
-    fp = np.memmap(f"{filename}.dat", dtype="float32", mode="w+", shape=encodings.shape)
-    fp[:] = encodings[:]
-    fp.flush()
+    for i, ps in tqdm(enumerate(batches), total=(len(passages) + batch_size - 1) // batch_size):
+        start = i * batch_size
+        end = min((i + 1) * batch_size, len(passages))
+        fp[start:end] = encoder.encode_documents(ps)
+        fp.flush()
 
 
 if __name__ == "__main__":
