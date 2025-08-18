@@ -13,6 +13,7 @@ from multiprocessing.dummy import Pool
 import dime.utils
 import ir_datasets
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 sys.path += [".", "DIME_simple/code", "DIME_simple/code/ir_models"]
@@ -20,7 +21,6 @@ sys.path += [".", "DIME_simple/code", "DIME_simple/code/ir_models"]
 import local_utils
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--collection", type=str)
     parser.add_argument("-e", "--encoder", type=str)
@@ -28,6 +28,9 @@ if __name__ == "__main__":
     parser.add_argument("--basepath", default=".")
     parser.add_argument(
         "--output", "-o", help="Output directory for graphs showing performance"
+    )
+    parser.add_argument(
+        "-i", "--importance", type=str, help="Location to save importance scores"
     )
     args = parser.parse_args()
 
@@ -109,6 +112,27 @@ if __name__ == "__main__":
         **dime_params
     )
     importance = dim_estimator.compute_importance(queries)
+
+    if args.importance is not None:
+        query_map = pd.DataFrame(
+            {
+                "query_id": queries["query_id"],
+                "offset": np.arange(len(queries), dtype=int),
+            }
+        )
+        query_map.to_csv(f"{args.importance}/{args.encoder}_qmap.csv", index=False)
+        importance_map = np.memmap(
+            f"{args.importance}/{args.encoder}_importance.dat",
+            dtype="float32",
+            mode="w+",
+            shape=(len(queries), encoder.embeddings_dim),
+        )
+
+        importance_scores = importance.merge(query_map, on="query_id", how="left")
+        importance_map[
+            importance_scores["offset"], importance_scores["dimension"]
+        ] = importance_scores["importance"]
+        importance_map.flush()
 
     def alpha_retrieve(parallel_args):
         importance, queries, alpha = parallel_args
