@@ -1,8 +1,9 @@
 #!/bin/bash --login
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=96
+#SBATCH --ntasks-per-core=1
+#SBATCH --mem=1024G
 #SBATCH --job-name=encoding
 #SBATCH --time=3-00:00:00
 #SBATCH --qos=gpu
@@ -17,7 +18,7 @@ module load cuda/12.1
 
 source $EBROOTMINICONDA3/etc/profile.d/conda.sh
 
-conda activate /home/uqtsolim/miniconda3/envs/dime-sigir-2024
+conda activate /home/uqtsolim/miniconda3/envs/dime
+export IR_DATASETS_HOME=/scratch/user/uqtsolim/.ir_datasets
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
-srun python code/encode_documents.py -c "msmarco-passage/trec-dl-2019/judged" -e cocondenser
-# srun python code/main.py -c trec-dl-2019 -e cocondenser -d oracle -o figs/
+srun python code/main.py -a -c msmarco-passage -e contriever -d oracle -o figs/ -i data/memmap/msmarco-passages

@@ -1,7 +1,7 @@
-from .AbstractSentenceTransformer import AbstractSentenceTransformer
+from .AbstractTransformer import AbstractTransformer
 
 
-class Cocondenser(AbstractSentenceTransformer):
+class Cocondenser(AbstractTransformer):
 
     def __init__(self, model_hgf="Luyu/co-condenser-marco-retriever"):
         super().__init__(model_hgf=model_hgf)

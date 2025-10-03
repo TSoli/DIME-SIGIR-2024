@@ -8,6 +8,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import argparse
 import importlib
 import sys
+from itertools import batched
 from multiprocessing.dummy import Pool
 
 import dime.utils
@@ -15,6 +16,7 @@ import ir_datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 sys.path += [".", "DIME_simple/code", "DIME_simple/code/ir_models"]
 
@@ -32,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-i", "--importance", type=str, help="Location to save importance scores"
     )
+    parser.add_argument("-a", "--add-non-relevant", action="store_true")
     args = parser.parse_args()
 
     if args.collection == "trec-dl-2019":
@@ -58,20 +61,37 @@ if __name__ == "__main__":
         )
     elif args.collection == "msmarco-passage":
         dataset = ir_datasets.load("msmarco-passage/train/judged")
+        qrels = pd.DataFrame(dataset.qrels_iter())
+        queries = pd.DataFrame(dataset.queries_iter()).query(
+            "query_id in @qrels.query_id"
+        )
 
     else:
-        ValueError("collection not recognized")
+        raise ValueError("collection not recognized")
 
     col2corpus = {
         "trec-dl-2019": "msmarco-passages",
         "trec-dl-2020": "msmarco-passages",
         "trec-robust-2004": "tipster",
+        "msmarco-passage": "msmarco-passages",
     }
 
     encoder = getattr(
         importlib.import_module(f"ir_models.dense"), args.encoder.capitalize()
     )()
-    queries["representation"] = list(encoder.encode_queries(queries.text.to_list()))
+    queries["representation"] = pd.Series(dtype=object)
+
+    query_embs = []
+    batch_size = 256
+    batches = batched(queries["text"].to_list(), batch_size)
+    for i, qs in tqdm(enumerate(batches), total=(len(queries["text"]) + batch_size - 1) // batch_size):
+        q_embs = encoder.encode_queries(qs)
+        query_embs.extend(list(q_embs))
+
+    queries["representation"] = query_embs
+    print(type(queries.loc[0, "representation"]))
+
+    print("Encoded queries")
 
     # We assume that you have already computed the memmaps containing the representation for all the documents of the corpus
     # please, visit https://numpy.org/doc/stable/reference/generated/numpy.memmap.html to learn more about memmap.
@@ -108,21 +128,32 @@ if __name__ == "__main__":
     else:
         ValueError("dime not recognized")
 
+    if args.add_non_relevant:
+        dime_params["add_non_relevant"] = True
+
+    n_workers = len(os.sched_getaffinity(0))
+    dime_params["workers"] = n_workers
+
     dim_estimator = getattr(importlib.import_module(f"dime"), args.dime.capitalize())(
         **dime_params
     )
+    print("Getting importance scores...")
+    sys.stdout.flush()
     importance = dim_estimator.compute_importance(queries)
+    print("Got importance scores")
+    sys.stdout.flush()
 
     if args.importance is not None:
+        save_dir = f"{args.importance}/{args.encoder}"
         query_map = pd.DataFrame(
             {
                 "query_id": queries["query_id"],
                 "offset": np.arange(len(queries), dtype=int),
             }
         )
-        query_map.to_csv(f"{args.importance}/{args.encoder}_qmap.csv", index=False)
+        query_map.to_csv(f"{save_dir}/{args.encoder}_qmap.csv", index=False)
         importance_map = np.memmap(
-            f"{args.importance}/{args.encoder}_importance.dat",
+            f"{save_dir}/{args.encoder}_importance.dat",
             dtype="float32",
             mode="w+",
             shape=(len(queries), encoder.embeddings_dim),
@@ -133,6 +164,8 @@ if __name__ == "__main__":
             importance_scores["offset"], importance_scores["dimension"]
         ] = importance_scores["importance"]
         importance_map.flush()
+        print("Saved importance scores")
+        sys.stdout.flush()
 
     def alpha_retrieve(parallel_args):
         importance, queries, alpha = parallel_args
@@ -148,27 +181,51 @@ if __name__ == "__main__":
             pool.map(alpha_retrieve, [[importance, queries, a] for a in alphas])
         )
 
-    perf = (
-        run.groupby("alpha")
-        .apply(
-            lambda x: local_utils.compute_measure(
-                x,
-                qrels,
-                [
-                    "AP",
-                    "R@1000",
-                    "MRR",
-                    "nDCG@3",
-                    "nDCG@10",
-                    "nDCG@100",
-                    "nDCG@20",
-                    "nDCG@50",
-                ],
-            )
-        )
-        .reset_index()
-        .drop("level_1", axis=1)
-    )
+    print("Retrieval complete")
+    sys.stdout.flush()
+
+    perfs = []
+    for alpha, group in tqdm(run.groupby("alpha"), desc="Calculating performance"):
+        perf = local_utils.compute_measure(
+            group,
+            qrels,
+            [
+                "AP",
+                "R@1000",
+                "MRR",
+                "nDCG@3",
+                "nDCG@10",
+                "nDCG@100",
+                "nDCG@20",
+                "nDCG@50",
+            ]
+        ).reset_index()
+        perf["alpha"] = alpha
+        perfs.append(perf)
+
+    perf = pd.concat(perfs, ignore_index=True)
+
+    # perf = (
+    #     run.groupby("alpha")
+    #     .apply(
+    #         lambda x: local_utils.compute_measure(
+    #             x,
+    #             qrels,
+    #             [
+    #                 "AP",
+    #                 "R@1000",
+    #                 "MRR",
+    #                 "nDCG@3",
+    #                 "nDCG@10",
+    #                 "nDCG@100",
+    #                 "nDCG@20",
+    #                 "nDCG@50",
+    #             ],
+    #         )
+    #     )
+    #     .reset_index()
+    #     .drop("level_1", axis=1)
+    # )
 
     result = (
         perf.groupby(["alpha", "measure"])

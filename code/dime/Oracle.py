@@ -13,7 +13,11 @@ def corr2_coeff(A, B):
     ssB = (B_mB ** 2).sum(1)
 
     # Finally get corr coeff
-    return np.dot(A_mA, B_mB.T) / np.sqrt(np.dot(ssA[:, None], ssB[None]))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        result = np.dot(A_mA, B_mB.T) / np.sqrt(np.dot(ssA[:, None], ssB[None]))
+        result[np.isnan(result)] = 0
+
+    return result
 
 
 class Oracle(AbstractDime):
